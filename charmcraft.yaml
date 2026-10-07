@@ -1,0 +1,92 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# This file configures Charmcraft.
+# See https://juju.is/docs/sdk/charmcraft-config for guidance.
+
+name: identity-platform-login-ui-frontend-operator
+type: charm
+summary: Charmed Operator for Identity Platform Login UI Frontend
+description: |
+  A Kubernetes-native Charmed Operator that deploys and manages the
+  Identity Platform Login UI Frontend application within Canonical's Identity Platform stack.
+links:
+  documentation: https://canonical-identity.readthedocs-hosted.com/reference/charms/identity-platform-login-ui-frontend
+  source: https://github.com/canonical/identity-platform-login-ui-frontend-operator
+  issues: https://github.com/canonical/identity-platform-login-ui-frontend-operator/issues
+assumes:
+  - k8s-api
+containers:
+  login-ui-frontend:
+    resource: oci-image
+resources:
+  oci-image:
+    type: oci-image
+    description: OCI image for Identity Platform Login UI Frontend
+    upstream-source: ghcr.io/canonical/identity-platform-login-ui-frontend:latest
+requires:
+  logging:
+    interface: loki_push_api
+    limit: 1
+    optional: true
+  tracing:
+    interface: tracing
+    limit: 1
+    optional: true
+  ingress:
+    interface: ingress
+    optional: true
+    limit: 1
+    description: |
+      Expose the Login UI Frontend via Traefik or NGINX ingress integrator.
+  login-ui-backend:
+    interface: login_ui_endpoints
+    optional: true
+    limit: 1
+    description: |
+      Integration with Identity Platform Login UI Backend operator to obtain endpoint URLs.
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
+    description: |
+      Provides application metrics to COS Prometheus instance.
+    optional: true
+  grafana-dashboard:
+    interface: grafana_dashboard
+    description: |
+      Forwards the built-in Grafana dashboard(s) for monitoring identity-platform-login-ui-frontend-operator.
+    optional: true
+peers:
+  identity-platform-login-ui-frontend:
+    interface: identity_platform_login_ui_frontend_peers
+config:
+  options:
+    log_level:
+      description: |
+        Acceptable values are: "info", "debug", "warning", "error", and "critical".
+      default: "info"
+      type: string
+    cpu:
+      description: |
+        Kubernetes CPU resource limit, e.g., "1" or "500m". Default is unset (no limit).
+      type: string
+    memory:
+      description: |
+        Kubernetes memory resource limit, e.g., "1Gi". Default is unset (no limit).
+      type: string
+platforms:
+  ubuntu@22.04:amd64:
+  ubuntu@22.04:arm64:
+  ubuntu@26.04:amd64:
+  ubuntu@26.04:arm64:
+parts:
+  templates:
+    plugin: dump
+    source: .
+    prime:
+      - templates/
+  charm:
+    plugin: uv
+    source: .
+    build-snaps:
+      - astral-uv

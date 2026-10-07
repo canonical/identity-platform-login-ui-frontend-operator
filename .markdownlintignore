@@ -1,0 +1,15 @@
+CHANGELOG.md
+.github/instructions/core-directive.instructions.md
+.github/instructions/instructions.instructions.md
+.github/instructions/secret-guard.instructions.md
+.github/agents/
+.github/agents/go-reviewer.agent.md
+.github/agents/go-style-guide.md
+.github/prompts/opsx*.md
+.github/skills/openspec*/
+.agent/skills/openspec*/
+.agents/skills/openspec*/
+.agent/workflows/openspec*/
+.agents/workflows/openspec*/
+openspec/
+terraform/MODULE_SPECS.md

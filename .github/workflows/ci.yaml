@@ -1,0 +1,11 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  openspec-check:
+    uses: ./.github/workflows/openspec-check.yaml

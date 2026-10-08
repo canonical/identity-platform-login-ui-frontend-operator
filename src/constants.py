@@ -10,8 +10,6 @@ APPLICATION_PORT = 8080
 # Integration names
 LOGGING_INTEGRATION_NAME = "logging"
 TRACING_INTEGRATION_NAME = "tracing"
-INGRESS_INTEGRATION_NAME = "ingress"
-LOGIN_UI_BACKEND_INTEGRATION_NAME = "login-ui-backend"
+PUBLIC_ROUTE_INTEGRATION_NAME = "public-route"
 METRICS_INTEGRATION_NAME = "metrics-endpoint"
 GRAFANA_INTEGRATION_NAME = "grafana-dashboard"
-PEER_INTEGRATION_NAME = "identity-platform-login-ui-frontend"

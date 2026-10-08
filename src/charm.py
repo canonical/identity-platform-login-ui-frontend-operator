@@ -14,7 +14,7 @@ from charms.observability_libs.v0.kubernetes_compute_resources_patch import (
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_k8s.v2.tracing import TracingEndpointRequirer
-from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
+from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from ops import (
     ActiveStatus,
     BlockedStatus,
@@ -29,9 +29,9 @@ from ops import (
 from constants import (
     APPLICATION_PORT,
     GRAFANA_INTEGRATION_NAME,
-    INGRESS_INTEGRATION_NAME,
     LOGGING_INTEGRATION_NAME,
     METRICS_INTEGRATION_NAME,
+    PUBLIC_ROUTE_INTEGRATION_NAME,
     TRACING_INTEGRATION_NAME,
     WORKLOAD_CONTAINER_NAME,
 )
@@ -63,11 +63,12 @@ class IdentityPlatformLoginUiFrontendOperatorCharm(CharmBase):
             self, relation_name=GRAFANA_INTEGRATION_NAME
         )
 
-        # Ingress integration
-        self._ingress = IngressPerAppRequirer(
+        # Traefik route integration
+        self.public_route = TraefikRouteRequirer(
             self,
-            relation_name=INGRESS_INTEGRATION_NAME,
-            port=APPLICATION_PORT,
+            self.model.get_relation(PUBLIC_ROUTE_INTEGRATION_NAME),
+            PUBLIC_ROUTE_INTEGRATION_NAME,
+            raw=True,
         )
 
         # Kubernetes compute resources patch
@@ -104,6 +105,7 @@ class IdentityPlatformLoginUiFrontendOperatorCharm(CharmBase):
 
         try:
             self._pebble_service.plan(env_vars)
+            self.unit.open_port(protocol="tcp", port=APPLICATION_PORT)
         except PebbleServiceError as exc:
             logger.error("Failed to configure Pebble service: %s", exc)
 

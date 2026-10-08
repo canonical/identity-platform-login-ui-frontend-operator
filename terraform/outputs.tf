@@ -9,7 +9,7 @@ output "app_name" {
 output "provides" {
   description = "Map of provides endpoint names"
   value = {
-    metrics_endpoint = "metrics-endpoint"
+    metrics_endpoint  = "metrics-endpoint"
     grafana_dashboard = "grafana-dashboard"
   }
 }
@@ -17,9 +17,8 @@ output "provides" {
 output "requires" {
   description = "Map of requires endpoint names"
   value = {
-    logging          = "logging"
-    tracing          = "tracing"
-    ingress          = "ingress"
-    login_ui_backend = "login-ui-backend"
+    logging      = "logging"
+    tracing      = "tracing"
+    public_route = "public-route"
   }
 }

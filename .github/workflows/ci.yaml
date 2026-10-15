@@ -1,11 +1,25 @@
 name: CI
 
 on:
+  workflow_call:
+  workflow_dispatch:
   pull_request:
-  push:
-    branches:
-      - main
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   openspec-check:
     uses: ./.github/workflows/openspec-check.yaml
+
+  ci:
+    name: Pull Request CI
+    uses: canonical/identity-team/.github/workflows/charm-pull-request.yaml@fc85af7448538c473be450dc2c8ec5d158ea0d15
+    secrets: inherit

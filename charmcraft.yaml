@@ -1,0 +1,71 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# This file configures Charmcraft.
+# See https://juju.is/docs/sdk/charmcraft-config for guidance.
+
+name: identity-platform-login-ui-fe-operator
+type: charm
+summary: Charmed Operator for Identity Platform Login UI Frontend
+description: |
+  A Kubernetes-native Charmed Operator that manages Ingress routing for the
+  Identity Platform Login UI Frontend application hosted in S3-compatible object storage.
+links:
+  documentation: https://canonical-identity.readthedocs-hosted.com/reference/charms/identity-platform-login-ui-frontend
+  source: https://github.com/canonical/identity-platform-login-ui-frontend-operator
+  issues: https://github.com/canonical/identity-platform-login-ui-frontend-operator/issues
+assumes:
+  - k8s-api
+requires:
+  traefik-ingress:
+    interface: traefik_route
+    limit: 1
+    optional: true
+    description: Traefik route integration for public frontend ingress
+  istio-ingress:
+    interface: istio_ingress_route
+    limit: 1
+    optional: true
+    description: Istio ingress route integration for Gateway API public frontend ingress
+config:
+  options:
+    ui-bundle-url:
+      description: |
+        HTTPS URL of the folder containing index.html in the S3 bucket; no credentials, query string, or fragment.
+      type: string
+    istio-route-hostnames:
+      description: |
+        Comma-separated hostnames for Istio routes.
+      type: string
+      default: ""
+    istio-resources-namespace:
+      description: |
+        Namespace for Istio resources.
+      type: string
+      default: ""
+    istio-egress-proxy:
+      description: |
+        Host:port of HTTP proxy for PS7 egress (e.g., "proxy.example.com:3128").
+      type: string
+      default: ""
+    istio-gateway-workload-labels:
+      description: |
+        Comma-separated key=value labels selecting the Istio gateway workload; required with istio-egress-proxy.
+      type: string
+      default: ""
+platforms:
+  ubuntu@22.04:amd64:
+  ubuntu@22.04:arm64:
+  ubuntu@26.04:amd64:
+  ubuntu@26.04:arm64:
+parts:
+  templates:
+    plugin: dump
+    source: .
+    prime:
+      - templates/
+  charm:
+    plugin: uv
+    source: .
+    build-snaps:
+      - astral-uv

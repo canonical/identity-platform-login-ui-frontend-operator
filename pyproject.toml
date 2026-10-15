@@ -1,5 +1,113 @@
 [project]
 name = "identity-platform-login-ui-frontend-operator"
 version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "ops>=2.17.0",
+    "lightkube>=0.15.0",
+    "charmlibs-interfaces-istio-ingress-route==1.0.2",
+    "pydantic>=2.0",
+    "jinja2>=3.1.0",
+    "PyYAML>=6.0",
+    "requests>=2.31.0",
+]
+
+[dependency-groups]
+fmt = [
+    "isort",
+    "ruff",
+]
+lint = [
+    "codespell",
+    "isort",
+    "ruff",
+    "tomli",
+]
+unit = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "coverage[toml]>=7.4.0",
+    "ops[testing]>=2.17.0",
+]
+integration = [
+    "boto3",
+    "jubilant",
+    "pytest>=8.0.0",
+    "PyYAML",
+    "requests",
+    "tenacity",
+]
+dev = [
+    { include-group = "fmt" },
+    { include-group = "lint" },
+    { include-group = "unit" },
+    { include-group = "integration" },
+]
+
+[tool.uv]
+package = false
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+pythonpath = ["src", "lib", "tests"]
+
+[tool.codespell]
+skip = ".git,.tox,build,lib,venv,.venv,.mypy_cache,icon.svg,__pycache__,uv.lock"
+ignore-words-list = "ist"
+
+[tool.isort]
+line_length = 99
+profile = "black"
+
+[tool.ruff]
+line-length = 99
+include = [
+    "pyproject.toml",
+    "src/**/*.py",
+    "tests/**/*.py",
+]
+extend-exclude = ["__pycache__", "*.egg_info"]
+target-version = "py310"
+preview = true
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "C", "N", "D", "CPY"]
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D105",
+    "D107",
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+    "E501",
+    "N818",
+]
+per-file-ignores = {"tests/*" = ["D100", "D101", "D102", "D103", "D104"]}
+
+[tool.ruff.lint.flake8-copyright]
+author = "Canonical Ltd."
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+

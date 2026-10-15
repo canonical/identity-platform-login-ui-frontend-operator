@@ -1,0 +1,189 @@
+{% set prefix = "{}-".format(app) %}
+{% set service_name = "{}s3-service".format(prefix) %}
+{% set error_mw = "{}error-404".format(prefix) %}
+{% set security_headers_mw = "{}security-headers".format(prefix) %}
+{% set redirect_mw = "{}redirect-mw".format(prefix) %}
+{% set page_slash_redirect_mw = "{}page-slash-redirect-mw".format(prefix) %}
+{% set root_mw = "{}root-mw".format(prefix) %}
+{% set page_mw = "{}page-mw".format(prefix) %}
+{% set asset_mw = "{}asset-mw".format(prefix) %}
+{
+  "http": {
+    "middlewares": {
+      "{{ error_mw }}": {
+        "errors": {
+          "status": "404",
+          "service": "{{ service_name }}",
+          "query": "{{ base_path }}/404.html"
+        }
+      },
+      "{{ security_headers_mw }}": {
+        "headers": {
+          "customResponseHeaders": {
+            "Permissions-Policy": "{{ response_headers['Permissions-Policy'] }}",
+            "X-Content-Type-Options": "{{ response_headers['X-Content-Type-Options'] }}",
+            "X-Frame-Options": "{{ response_headers['X-Frame-Options'] }}",
+            "Content-Security-Policy": "{{ response_headers['Content-Security-Policy'] }}",
+            "Cache-Control": "{{ response_headers['Cache-Control'] }}"
+          }
+        }
+      },
+      "{{ redirect_mw }}": {
+        "redirectRegex": {
+          "regex": "^(.*){{ public_path_prefix }}$",
+          "replacement": "${1}{{ public_path_prefix }}/",
+          "permanent": true
+        }
+      },
+      "{{ page_slash_redirect_mw }}": {
+        "redirectRegex": {
+          "regex": "^(.*){{ public_path_prefix }}/([^/.]+)/$",
+          "replacement": "${1}{{ public_path_prefix }}/${2}",
+          "permanent": true
+        }
+      },
+      "{{ root_mw }}": {
+        "replacePathRegex": {
+          "regex": "^{{ public_path_prefix }}/?$",
+          "replacement": "{{ base_path }}/index.html"
+        }
+      },
+      "{{ page_mw }}": {
+        "replacePathRegex": {
+          "regex": "^{{ public_path_prefix }}/([^/.]+)$",
+          "replacement": "{{ base_path }}/$1.html"
+        }
+      },
+      "{{ asset_mw }}": {
+        "replacePathRegex": {
+          "regex": "^{{ public_path_prefix }}/(.*)$",
+          "replacement": "{{ base_path }}/$1"
+        }
+      }
+    },
+    "routers": {
+      "{{ prefix }}redirect": {
+        "entryPoints": ["web"],
+        "rule": "Path(`{{ public_path_prefix }}`)",
+        "priority": 400,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ redirect_mw }}"]
+      },
+      "{{ prefix }}redirect-tls": {
+        "entryPoints": ["websecure"],
+        "rule": "Path(`{{ public_path_prefix }}`)",
+        "priority": 400,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ redirect_mw }}"],
+        "tls": {% if external_host %}{
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }{% else %}{}{% endif %}
+      },
+      "{{ prefix }}page-slash-redirect": {
+        "entryPoints": ["web"],
+        "rule": "Path(`{{ public_path_prefix }}/{page:[^/.]+}/`)",
+        "priority": 350,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ page_slash_redirect_mw }}"]
+      },
+      "{{ prefix }}page-slash-redirect-tls": {
+        "entryPoints": ["websecure"],
+        "rule": "Path(`{{ public_path_prefix }}/{page:[^/.]+}/`)",
+        "priority": 350,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ page_slash_redirect_mw }}"],
+        "tls": {% if external_host %}{
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }{% else %}{}{% endif %}
+      },
+      "{{ prefix }}root": {
+        "entryPoints": ["web"],
+        "rule": "Path(`{{ public_path_prefix }}/`)",
+        "priority": 300,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ root_mw }}", "{{ error_mw }}"]
+      },
+      "{{ prefix }}root-tls": {
+        "entryPoints": ["websecure"],
+        "rule": "Path(`{{ public_path_prefix }}/`)",
+        "priority": 300,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ root_mw }}", "{{ error_mw }}"],
+        "tls": {% if external_host %}{
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }{% else %}{}{% endif %}
+      },
+      "{{ prefix }}page": {
+        "entryPoints": ["web"],
+        "rule": "Path(`{{ public_path_prefix }}/{page:[^/.]+}`)",
+        "priority": 200,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ page_mw }}", "{{ error_mw }}"]
+      },
+      "{{ prefix }}page-tls": {
+        "entryPoints": ["websecure"],
+        "rule": "Path(`{{ public_path_prefix }}/{page:[^/.]+}`)",
+        "priority": 200,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ page_mw }}", "{{ error_mw }}"],
+        "tls": {% if external_host %}{
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }{% else %}{}{% endif %}
+      },
+      "{{ prefix }}asset": {
+        "entryPoints": ["web"],
+        "rule": "PathPrefix(`{{ public_path_prefix }}/`)",
+        "priority": 100,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ asset_mw }}"]
+      },
+      "{{ prefix }}asset-tls": {
+        "entryPoints": ["websecure"],
+        "rule": "PathPrefix(`{{ public_path_prefix }}/`)",
+        "priority": 100,
+        "service": "{{ service_name }}",
+        "middlewares": ["{{ security_headers_mw }}", "{{ asset_mw }}"],
+        "tls": {% if external_host %}{
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }{% else %}{}{% endif %}
+      }
+    },
+    "services": {
+      "{{ service_name }}": {
+        "loadBalancer": {
+          "passHostHeader": false,
+          "servers": [
+            {
+              "url": "{{ origin }}"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

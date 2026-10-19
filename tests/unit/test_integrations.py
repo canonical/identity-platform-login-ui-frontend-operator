@@ -10,9 +10,7 @@ from config import CharmConfig
 from constants import (
     ENVOY_TUNNEL_PORT,
     INTERNAL_BUNDLE_HOST_SUFFIX,
-    ISTIO_INTEGRATION_NAME,
     RESPONSE_HEADERS,
-    TRAEFIK_INTEGRATION_NAME,
 )
 from integrations import IstioIngressRouteData, TraefikRouteData
 
@@ -21,25 +19,15 @@ class TestTraefikRouteData:
     """Tests for TraefikRouteData."""
 
     def test_is_ready_true(self) -> None:
-        """Test TraefikRouteData.is_ready when relation and remote app exist."""
+        """Test TraefikRouteData.is_ready returns True when requirer is ready."""
         requirer = MagicMock()
         requirer.is_ready.return_value = True
-        requirer._relation = MagicMock(app=MagicMock())
         assert TraefikRouteData.is_ready(requirer) is True
 
-    def test_is_ready_false_when_departing(self) -> None:
-        """Test TraefikRouteData.is_ready returns False when relation.app is None."""
+    def test_is_ready_false(self) -> None:
+        """Test TraefikRouteData.is_ready returns False when requirer is not ready."""
         requirer = MagicMock()
-        requirer.is_ready.return_value = True
-        requirer._relation = MagicMock(app=None)
-        assert TraefikRouteData.is_ready(requirer) is False
-
-    def test_is_ready_false_when_breaking(self) -> None:
-        """Test TraefikRouteData.is_ready returns False when relation is marked breaking."""
-        requirer = MagicMock()
-        requirer.is_ready.return_value = True
-        requirer._relation = MagicMock(app=MagicMock())
-        requirer._charm._breaking_relations = {TRAEFIK_INTEGRATION_NAME}
+        requirer.is_ready.return_value = False
         assert TraefikRouteData.is_ready(requirer) is False
 
     def test_load_renders_template_with_headers_and_404(self) -> None:
@@ -93,11 +81,16 @@ class TestTraefikRouteData:
 class TestIstioIngressRouteData:
     """Tests for IstioIngressRouteData."""
 
-    def test_is_ready_false_when_breaking(self) -> None:
-        """Test IstioIngressRouteData.is_ready returns False when relation is marked breaking."""
+    def test_is_ready_true(self) -> None:
+        """Test IstioIngressRouteData.is_ready returns True when requirer is ready."""
         requirer = MagicMock()
         requirer.is_ready.return_value = True
-        requirer._charm._breaking_relations = {ISTIO_INTEGRATION_NAME}
+        assert IstioIngressRouteData.is_ready(requirer) is True
+
+    def test_is_ready_false(self) -> None:
+        """Test IstioIngressRouteData.is_ready returns False when requirer is not ready."""
+        requirer = MagicMock()
+        requirer.is_ready.return_value = False
         assert IstioIngressRouteData.is_ready(requirer) is False
 
     def test_load_direct_mode_with_custom_port_and_hostnames(self) -> None:

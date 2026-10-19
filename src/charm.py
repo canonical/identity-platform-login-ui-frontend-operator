@@ -45,7 +45,6 @@ class IdentityPlatformLoginUiFrontendCharm(ops.CharmBase):
             app_name=self.app.name,
             namespace=self.model.name,
         )
-        self._breaking_relations: set[str] = set()
         self._bundle_reachable: bool | None = None
         self._istio_reconcile_error: Exception | None = None
 
@@ -104,13 +103,10 @@ class IdentityPlatformLoginUiFrontendCharm(ops.CharmBase):
         self._cleanup_istio_mesh()
 
     def _on_ingress_changed(self, event: ops.RelationEvent) -> None:
-        if isinstance(event, ops.RelationBrokenEvent):
-            self._breaking_relations.add(event.relation.name)
         self._holistic_handler(event)
 
     def _on_istio_ingress_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Clean up Istio Kubernetes resources when the Istio ingress relation is removed."""
-        self._breaking_relations.add(ISTIO_INTEGRATION_NAME)
         self._cleanup_istio_mesh()
         self._holistic_handler(event)
 

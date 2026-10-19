@@ -34,10 +34,8 @@ from config import CharmConfig
 from constants import (
     ENVOY_TUNNEL_PORT,
     INTERNAL_BUNDLE_HOST_SUFFIX,
-    ISTIO_INTEGRATION_NAME,
     PUBLIC_PATH_PREFIX,
     RESPONSE_HEADERS,
-    TRAEFIK_INTEGRATION_NAME,
     TRAEFIK_ROUTE_TEMPLATE_PATH,
 )
 
@@ -55,21 +53,15 @@ class TraefikRouteData:
     @classmethod
     def is_ready(cls, requirer: TraefikRouteRequirer) -> bool:
         """Check whether the Traefik route relation is active and not being torn down."""
-        charm = getattr(requirer, "_charm", None)
-        breaking = getattr(charm, "_breaking_relations", None)
-        if isinstance(breaking, set) and TRAEFIK_INTEGRATION_NAME in breaking:
-            return False
-        relation = getattr(requirer, "_relation", None)
-        return bool(requirer.is_ready() and relation is not None and relation.app is not None)
+        return requirer.is_ready()
 
     @classmethod
     def load(cls, requirer: TraefikRouteRequirer, bundle: BundleUrl) -> "TraefikRouteData":
         """Render the Jinja2 Traefik dynamic configuration template for the given bundle."""
         external_host = requirer.external_host or ""
         scheme = requirer.scheme or "http"
-        charm = getattr(requirer, "_charm", None)
-        app_name = charm.app.name if charm else "identity-platform-login-ui-frontend"
-        model_name = charm.model.name if charm else ""
+        app_name = requirer._charm.app.name
+        model_name = requirer._charm.model.name
 
         template_content = Path(TRAEFIK_ROUTE_TEMPLATE_PATH).read_text(encoding="utf-8")
         rendered = Template(template_content).render(
@@ -98,11 +90,7 @@ class IstioIngressRouteData:
     @classmethod
     def is_ready(cls, requirer: IstioIngressRouteRequirer) -> bool:
         """Check whether the Istio ingress relation is active and not being torn down."""
-        charm = getattr(requirer, "_charm", None)
-        breaking = getattr(charm, "_breaking_relations", None)
-        if isinstance(breaking, set) and ISTIO_INTEGRATION_NAME in breaking:
-            return False
-        return bool(requirer.is_ready())
+        return requirer.is_ready()
 
     @classmethod
     def load(

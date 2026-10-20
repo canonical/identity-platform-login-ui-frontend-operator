@@ -4,7 +4,7 @@
 # This file configures Charmcraft.
 # See https://juju.is/docs/sdk/charmcraft-config for guidance.
 
-name: identity-platform-login-ui-fe-operator
+name: identity-platform-login-ui-frontend
 type: charm
 summary: Charmed Operator for Identity Platform Login UI Frontend
 description: |

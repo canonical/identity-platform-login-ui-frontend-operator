@@ -96,6 +96,7 @@ class TestIstioIngressRouteData:
     def test_load_direct_mode_with_custom_port_and_hostnames(self) -> None:
         """Test IstioIngressRouteData.load in direct mode preserves custom S3 port and hostnames."""
         requirer = MagicMock()
+        requirer.tls_enabled = False
         cfg = CharmConfig.from_dict({
             "ui-bundle-url": "https://s3.example.com:9443/bucket/v1",
             "istio-route-hostnames": "auth.example.com, id.example.com",
@@ -108,6 +109,9 @@ class TestIstioIngressRouteData:
             model_name="iam",
         )
 
+        assert len(data.config.listeners) == 1
+        assert data.config.listeners[0].port == 80
+
         routes = {r.name: r for r in data.config.http_routes}
         assert set(routes.keys()) == {
             "ui-redirect",
@@ -119,6 +123,7 @@ class TestIstioIngressRouteData:
 
         for route in routes.values():
             assert route.hostnames == ["auth.example.com", "id.example.com"]
+            assert route.listener.port == 80
 
         # Direct mode backend uses DNS-1035 service name and custom port
         root_backend = routes["ui-root"].backends[0]
@@ -149,9 +154,30 @@ class TestIstioIngressRouteData:
         assert root_rewrite.hostname == "s3.example.com"
         assert root_rewrite.path.value == "/bucket/v1/index.html"
 
+    def test_load_tls_enabled_uses_port_443(self) -> None:
+        """Test IstioIngressRouteData.load sets listener port to 443 when TLS is enabled."""
+        requirer = MagicMock()
+        requirer.tls_enabled = True
+        cfg = CharmConfig.from_dict({
+            "ui-bundle-url": "https://s3.example.com/bucket",
+        })
+
+        data = IstioIngressRouteData.load(
+            requirer,
+            charm_config=cfg,
+            app_name="login-ui",
+            model_name="iam",
+        )
+
+        assert len(data.config.listeners) == 1
+        assert data.config.listeners[0].port == 443
+        for route in data.config.http_routes:
+            assert route.listener.port == 443
+
     def test_load_tunnel_mode(self) -> None:
         """Test IstioIngressRouteData.load in proxy tunnel mode targets synthetic internal host."""
         requirer = MagicMock()
+        requirer.tls_enabled = False
         cfg = CharmConfig.from_dict({
             "ui-bundle-url": "https://s3.example.com:9443/bucket",
             "istio-egress-proxy": "proxy.internal:3128",

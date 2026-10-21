@@ -112,7 +112,8 @@ class IstioIngressRouteData:
             backend_host = f"{app_name}-s3-external"
             backend_port = bundle.port
 
-        http_listener = Listener(port=80, protocol=ProtocolType.HTTP)
+        listener_port = 443 if requirer.tls_enabled else 80
+        http_listener = Listener(port=listener_port, protocol=ProtocolType.HTTP)
         backend = BackendRef(service=backend_host, port=backend_port, weight=100)
 
         # 1. Exact /ui -> 301 redirect to /ui/

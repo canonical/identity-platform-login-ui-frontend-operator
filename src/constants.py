@@ -12,8 +12,6 @@ HEALTH_CHECK_PATH = "/index.html"
 HEALTH_CHECK_TIMEOUT = 5
 
 # Istio & Envoy constants
-ENVOY_TUNNEL_PORT = 15999
-INTERNAL_BUNDLE_HOST_SUFFIX = "-ui-bundle-internal"
 FIELD_MANAGER = "identity-platform-login-ui-frontend-operator"
 ISTIO_NETWORKING_GROUP = "networking.istio.io"
 ISTIO_NETWORKING_VERSION = "v1alpha3"

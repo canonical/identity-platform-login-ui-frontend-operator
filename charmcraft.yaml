@@ -43,16 +43,6 @@ config:
         Namespace for Istio resources.
       type: string
       default: ""
-    istio-egress-proxy:
-      description: |
-        Host:port of HTTP proxy for PS7 egress (e.g., "proxy.example.com:3128").
-      type: string
-      default: ""
-    istio-gateway-workload-labels:
-      description: |
-        Comma-separated key=value labels selecting the Istio gateway workload; required with istio-egress-proxy.
-      type: string
-      default: ""
 platforms:
   ubuntu@22.04:amd64:
   ubuntu@22.04:arm64:

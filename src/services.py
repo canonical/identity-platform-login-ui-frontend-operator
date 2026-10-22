@@ -18,10 +18,8 @@ from lightkube.models.meta_v1 import ObjectMeta
 from bundle import BundleUrl
 from config import CharmConfig
 from constants import (
-    ENVOY_TUNNEL_PORT,
     FIELD_MANAGER,
     HEALTH_CHECK_TIMEOUT,
-    INTERNAL_BUNDLE_HOST_SUFFIX,
     ISTIO_NETWORKING_GROUP,
     ISTIO_NETWORKING_VERSION,
     RESPONSE_HEADERS,
@@ -123,24 +121,9 @@ class IstioMeshService:
         return self._client
 
     @property
-    def internal_host(self) -> str:
-        """Synthetic internal host used for the Envoy HTTP CONNECT tunnel."""
-        return f"{self.app_name}{INTERNAL_BUNDLE_HOST_SUFFIX}"
-
-    @property
-    def internal_service_fqdn(self) -> str:
-        """Kubernetes Service FQDN for the internal tunnel backend."""
-        return f"{self.internal_host}.{self.namespace}.svc.cluster.local"
-
-    @property
     def external_service_fqdn(self) -> str:
         """Kubernetes Service FQDN for the external S3 backend."""
         return f"{self.app_name}-s3-external.{self.namespace}.svc.cluster.local"
-
-    @property
-    def proxy_cluster_name(self) -> str:
-        """Envoy cluster name for the corporate forward proxy."""
-        return f"{self.app_name}-proxy-cluster"
 
     def _apply(self, resource: Any) -> None:
         """Apply a namespaced Kubernetes resource and translate ApiErrors."""
@@ -189,11 +172,8 @@ class IstioMeshService:
             raise KubernetesResourceError(f"Failed to delete Istio resource: {exc}") from exc
 
     def reconcile(self, config: CharmConfig) -> None:
-        """Reconcile Istio mesh resources for either direct or proxy-tunnelled egress."""
-        if config.istio_egress_proxy:
-            self._reconcile_tunnel_mode(config)
-        else:
-            self._reconcile_direct_mode(config)
+        """Reconcile Istio mesh resources for S3 egress and route rewriting."""
+        self._reconcile_s3_egress(config)
         self._reconcile_route_rewrite_filter(config)
 
     def _reconcile_route_rewrite_filter(self, config: CharmConfig) -> None:
@@ -294,8 +274,6 @@ class IstioMeshService:
                 }
             ]
         }
-        if config.istio_gateway_workload_labels:
-            spec["workloadSelector"] = {"labels": config.istio_gateway_workload_labels}
 
         ef = EnvoyFilter(
             metadata=ObjectMeta(name=filter_name, namespace=gw_namespace),
@@ -303,8 +281,8 @@ class IstioMeshService:
         )
         self._apply(ef)
 
-    def _reconcile_direct_mode(self, config: CharmConfig) -> None:
-        """Apply ServiceEntry and DestinationRule for direct TLS origination to S3 (PS6)."""
+    def _reconcile_s3_egress(self, config: CharmConfig) -> None:
+        """Apply ServiceEntry and DestinationRule for TLS origination to S3."""
         s3_host = config.bundle.hostname
         s3_port = config.bundle.port
         resource_name = f"{self.app_name}-s3-external"
@@ -351,144 +329,12 @@ class IstioMeshService:
         )
         self._apply(dr)
 
-        # Remove any stale EnvoyFilter if switching from tunnel mode to direct mode
-        gw_namespace = config.istio_resources_namespace or self.namespace
-        filter_name = f"{self.app_name}-proxy-tunnel"
-        self._delete(EnvoyFilter, name=filter_name, namespace=gw_namespace)
-
-    def _reconcile_tunnel_mode(self, config: CharmConfig) -> None:
-        """Apply ServiceEntry, DestinationRule, and EnvoyFilter for HTTP CONNECT proxy egress (PS7)."""
-        s3_host = config.bundle.hostname
-        s3_port = config.bundle.port
-        resource_name = f"{self.app_name}-s3-external"
-
-        se = ServiceEntry(
-            metadata=ObjectMeta(name=resource_name, namespace=self.namespace),
-            spec={
-                "hosts": [self.internal_service_fqdn, self.internal_host],
-                "location": "MESH_INTERNAL",
-                "ports": [
-                    {
-                        "number": ENVOY_TUNNEL_PORT,
-                        "name": "http",
-                        "protocol": "HTTP",
-                    }
-                ],
-                "resolution": "STATIC",
-                "endpoints": [{"address": "127.0.0.1"}],
-            },
-        )
-        self._apply(se)
-
-        dr = DestinationRule(
-            metadata=ObjectMeta(name=resource_name, namespace=self.namespace),
-            spec={
-                "host": self.internal_service_fqdn,
-                "trafficPolicy": {
-                    "tls": {
-                        "mode": "SIMPLE",
-                        "sni": s3_host,
-                    },
-                    "portLevelSettings": [
-                        {
-                            "port": {"number": ENVOY_TUNNEL_PORT},
-                            "tls": {
-                                "mode": "SIMPLE",
-                                "sni": s3_host,
-                            },
-                        }
-                    ],
-                },
-            },
-        )
-        self._apply(dr)
-
-        gw_namespace = config.istio_resources_namespace or self.namespace
-        filter_name = f"{self.app_name}-proxy-tunnel"
-
-        ef = EnvoyFilter(
-            metadata=ObjectMeta(name=filter_name, namespace=gw_namespace),
-            spec={
-                "workloadSelector": {"labels": config.istio_gateway_workload_labels},
-                "configPatches": [
-                    {
-                        "applyTo": "LISTENER",
-                        "match": {"context": "GATEWAY"},
-                        "patch": {
-                            "operation": "ADD",
-                            "value": {
-                                "name": f"{self.app_name}_connect_tunnel",
-                                "address": {
-                                    "socketAddress": {
-                                        "address": "127.0.0.1",
-                                        "portValue": ENVOY_TUNNEL_PORT,
-                                    }
-                                },
-                                "filterChains": [
-                                    {
-                                        "filters": [
-                                            {
-                                                "name": "envoy.filters.network.tcp_proxy",
-                                                "typedConfig": {
-                                                    "@type": "type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy",
-                                                    "statPrefix": "egress_proxy_tcp",
-                                                    "cluster": self.proxy_cluster_name,
-                                                    "tunnelingConfig": {
-                                                        "hostname": f"{s3_host}:{s3_port}",
-                                                    },
-                                                },
-                                            }
-                                        ]
-                                    }
-                                ],
-                            },
-                        },
-                    },
-                    {
-                        "applyTo": "CLUSTER",
-                        "match": {"context": "GATEWAY"},
-                        "patch": {
-                            "operation": "ADD",
-                            "value": {
-                                "name": self.proxy_cluster_name,
-                                "type": "LOGICAL_DNS",
-                                "connectTimeout": "10s",
-                                "lbPolicy": "ROUND_ROBIN",
-                                "loadAssignment": {
-                                    "clusterName": self.proxy_cluster_name,
-                                    "endpoints": [
-                                        {
-                                            "lbEndpoints": [
-                                                {
-                                                    "endpoint": {
-                                                        "address": {
-                                                            "socketAddress": {
-                                                                "address": config.proxy_host,
-                                                                "portValue": config.proxy_port,
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    ],
-                                },
-                            },
-                        },
-                    },
-                ],
-            },
-        )
-        self._apply(ef)
-
     def cleanup(self, istio_resources_namespace: str = "") -> None:
         """Delete all Istio custom resources created by this charm."""
         resource_name = f"{self.app_name}-s3-external"
-        filter_name = f"{self.app_name}-proxy-tunnel"
         rewrite_filter_name = f"{self.app_name}-ui-rewrite"
         gw_namespace = istio_resources_namespace or self.namespace
 
         self._delete(ServiceEntry, name=resource_name, namespace=self.namespace)
         self._delete(DestinationRule, name=resource_name, namespace=self.namespace)
-        self._delete(EnvoyFilter, name=filter_name, namespace=gw_namespace)
         self._delete(EnvoyFilter, name=rewrite_filter_name, namespace=gw_namespace)

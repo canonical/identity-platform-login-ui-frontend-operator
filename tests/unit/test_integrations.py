@@ -7,11 +7,7 @@ from unittest.mock import MagicMock
 
 from bundle import BundleUrl
 from config import CharmConfig
-from constants import (
-    ENVOY_TUNNEL_PORT,
-    INTERNAL_BUNDLE_HOST_SUFFIX,
-    RESPONSE_HEADERS,
-)
+from constants import RESPONSE_HEADERS
 from integrations import IstioIngressRouteData, TraefikRouteData
 
 
@@ -93,8 +89,8 @@ class TestIstioIngressRouteData:
         requirer.is_ready.return_value = False
         assert IstioIngressRouteData.is_ready(requirer) is False
 
-    def test_load_direct_mode_with_custom_port_and_hostnames(self) -> None:
-        """Test IstioIngressRouteData.load in direct mode preserves custom S3 port and hostnames."""
+    def test_load_with_custom_port_and_hostnames(self) -> None:
+        """Test IstioIngressRouteData.load preserves custom S3 port and hostnames."""
         requirer = MagicMock()
         requirer.tls_enabled = False
         cfg = CharmConfig.from_dict({
@@ -173,26 +169,3 @@ class TestIstioIngressRouteData:
         assert data.config.listeners[0].port == 443
         for route in data.config.http_routes:
             assert route.listener.port == 443
-
-    def test_load_tunnel_mode(self) -> None:
-        """Test IstioIngressRouteData.load in proxy tunnel mode targets synthetic internal host."""
-        requirer = MagicMock()
-        requirer.tls_enabled = False
-        cfg = CharmConfig.from_dict({
-            "ui-bundle-url": "https://s3.example.com:9443/bucket",
-            "istio-egress-proxy": "proxy.internal:3128",
-            "istio-gateway-workload-labels": "istio=ingressgateway",
-        })
-
-        data = IstioIngressRouteData.load(
-            requirer,
-            charm_config=cfg,
-            app_name="login-ui",
-            model_name="iam",
-        )
-
-        routes = {r.name: r for r in data.config.http_routes}
-        root_backend = routes["ui-root"].backends[0]
-        assert routes["ui-root"].hostnames is None
-        assert root_backend.service == f"login-ui{INTERNAL_BUNDLE_HOST_SUFFIX}"
-        assert root_backend.port == ENVOY_TUNNEL_PORT

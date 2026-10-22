@@ -16,10 +16,6 @@ class BundleUrlError(InvalidConfigError):
     """Raised when the S3 bundle URL is malformed or invalid."""
 
 
-class IstioConfigError(InvalidConfigError):
-    """Raised when Istio configuration or labels are invalid."""
-
-
 class HealthCheckError(CharmError):
     """Raised when health check against S3 bundle fails."""
 

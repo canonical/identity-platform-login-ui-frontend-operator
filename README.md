@@ -12,7 +12,6 @@ The **Login UI Frontend Operator** manages dynamic ingress routing and egress ru
 - **Dynamic Path Rewriting**: Automatically maps UI page routes (e.g. `/ui/login` -> `/login.html`, `/ui/consent` -> `/consent.html`) and asset paths.
 - **Traefik Ingress Support**: Integrates with `traefik-k8s` via the `traefik-ingress` relation (`traefik_route` interface v0).
 - **Istio Ingress & Egress Support**: Integrates with Istio via `istio-ingress` (`istio_ingress_route` interface) and dynamically manages Kubernetes CRDs (`ServiceEntry`, `DestinationRule`, and `EnvoyFilter`) using `lightkube`.
-- **Egress Proxying**: Supports direct S3 egress or HTTP proxy tunnelling (`istio-egress-proxy`) for restricted network environments.
 - **Automated Health Checking**: Performs HEAD health checks against `/index.html` on the S3 bundle origin, respecting `JUJU_CHARM_HTTPS_PROXY`.
 
 ## Configuration Options
@@ -22,8 +21,6 @@ The **Login UI Frontend Operator** manages dynamic ingress routing and egress ru
 | `ui-bundle-url` | string | *(Required)* | Full HTTPS URL to the S3 bucket directory containing static UI assets (e.g. `https://s3.example.com/my-bucket/dist`). |
 | `istio-route-hostnames` | string | `""` | Comma-separated list of hostnames for Istio HTTPRoute matching. |
 | `istio-resources-namespace` | string | `""` | Namespace override for Istio gateway and EnvoyFilter CRD deployment. |
-| `istio-egress-proxy` | string | `""` | HTTP proxy for Istio egress in `host:port` format (e.g. `http-proxy.internal:3128`). Requires `istio-gateway-workload-labels`. |
-| `istio-gateway-workload-labels` | string | `""` | Comma-separated key=value pairs matching Istio Gateway pod labels (e.g. `app=istio-ingressgateway`). Required when `istio-egress-proxy` is set. |
 
 ## Relations
 

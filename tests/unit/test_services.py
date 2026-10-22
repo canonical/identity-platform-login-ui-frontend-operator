@@ -12,7 +12,6 @@ from lightkube.core.generic_client import httpx
 
 from bundle import BundleUrl
 from config import CharmConfig
-from constants import ENVOY_TUNNEL_PORT, INTERNAL_BUNDLE_HOST_SUFFIX
 from exceptions import KubernetesPermissionError, KubernetesResourceError
 from services import (
     SYSTEM_CA_BUNDLE,
@@ -95,8 +94,8 @@ class TestBundleHealthCheck:
 class TestIstioMeshService:
     """Tests for IstioMeshService."""
 
-    def test_reconcile_direct_mode_with_custom_port(self) -> None:
-        """Test PS6 direct mode creates ServiceEntry, DestinationRule, and rewrite EnvoyFilter."""
+    def test_reconcile_with_custom_port(self) -> None:
+        """Test reconcile creates ServiceEntry, DestinationRule, and rewrite EnvoyFilter."""
         service = IstioMeshService(app_name="login-ui", namespace="iam")
         mock_client = MagicMock()
         service._client = mock_client
@@ -138,87 +137,22 @@ class TestIstioMeshService:
         assert "Content-Security-Policy" in lua_code
         assert 'local base = "/dist"' in lua_code
 
-        mock_client.delete.assert_called_once_with(
-            EnvoyFilter, name="login-ui-proxy-tunnel", namespace="iam"
-        )
-
-    def test_reconcile_tunnel_mode_with_sni_and_cluster_patch(self) -> None:
-        """Test PS7 tunnel mode sets SNI to s3_host and includes LISTENER and CLUSTER patches."""
-        service = IstioMeshService(app_name="login-ui", namespace="iam")
-        mock_client = MagicMock()
-        service._client = mock_client
-
-        cfg = CharmConfig.from_dict({
-            "ui-bundle-url": "https://s3.example.com:8443/dist",
-            "istio-egress-proxy": "proxy.internal:3128",
-            "istio-gateway-workload-labels": "istio=ingressgateway",
-            "istio-resources-namespace": "istio-system",
-        })
-        service.reconcile(cfg)
-
-        assert mock_client.apply.call_count == 4
-        applied_se = mock_client.apply.call_args_list[0].args[0]
-        applied_dr = mock_client.apply.call_args_list[1].args[0]
-        applied_ef = mock_client.apply.call_args_list[2].args[0]
-        applied_rewrite_ef = mock_client.apply.call_args_list[3].args[0]
-
-        internal_host = f"login-ui{INTERNAL_BUNDLE_HOST_SUFFIX}"
-        internal_fqdn = f"{internal_host}.iam.svc.cluster.local"
-        assert applied_se.spec["hosts"] == [internal_fqdn, internal_host]
-        assert applied_se.spec["ports"][0]["number"] == ENVOY_TUNNEL_PORT
-
-        # Verify DestinationRule sets SNI to actual S3 hostname (not internal_host)
-        assert applied_dr.spec["host"] == internal_fqdn
-        assert applied_dr.spec["trafficPolicy"]["tls"]["sni"] == "s3.example.com"
-        assert (
-            applied_dr.spec["trafficPolicy"]["portLevelSettings"][0]["tls"]["sni"]
-            == "s3.example.com"
-        )
-
-        # Verify EnvoyFilter has both LISTENER and CLUSTER patches in istio-system
-        assert applied_ef.metadata.namespace == "istio-system"
-        assert applied_ef.spec["workloadSelector"] == {"labels": {"istio": "ingressgateway"}}
-        patches = applied_ef.spec["configPatches"]
-        assert len(patches) == 2
-
-        listener_patch = patches[0]
-        assert listener_patch["applyTo"] == "LISTENER"
-        tcp_cfg = listener_patch["patch"]["value"]["filterChains"][0]["filters"][0]["typedConfig"]
-        assert tcp_cfg["cluster"] == "login-ui-proxy-cluster"
-        assert tcp_cfg["tunnelingConfig"]["hostname"] == "s3.example.com:8443"
-
-        cluster_patch = patches[1]
-        assert cluster_patch["applyTo"] == "CLUSTER"
-        cluster_val = cluster_patch["patch"]["value"]
-        assert cluster_val["name"] == "login-ui-proxy-cluster"
-        socket_addr = cluster_val["loadAssignment"]["endpoints"][0]["lbEndpoints"][0]["endpoint"][
-            "address"
-        ]["socketAddress"]
-        assert socket_addr == {"address": "proxy.internal", "portValue": 3128}
-
-        assert applied_rewrite_ef.metadata.name == "login-ui-ui-rewrite"
-        assert applied_rewrite_ef.metadata.namespace == "istio-system"
-        assert applied_rewrite_ef.spec["workloadSelector"] == {
-            "labels": {"istio": "ingressgateway"}
-        }
+        mock_client.delete.assert_not_called()
 
     def test_cleanup_deletes_all_resources(self) -> None:
-        """Test cleanup deletes ServiceEntry, DestinationRule, and EnvoyFilters."""
+        """Test cleanup deletes ServiceEntry, DestinationRule, and EnvoyFilter."""
         service = IstioMeshService(app_name="login-ui", namespace="iam")
         mock_client = MagicMock()
         service._client = mock_client
 
         service.cleanup(istio_resources_namespace="istio-gw")
 
-        assert mock_client.delete.call_count == 4
+        assert mock_client.delete.call_count == 3
         mock_client.delete.assert_any_call(
             ServiceEntry, name="login-ui-s3-external", namespace="iam"
         )
         mock_client.delete.assert_any_call(
             DestinationRule, name="login-ui-s3-external", namespace="iam"
-        )
-        mock_client.delete.assert_any_call(
-            EnvoyFilter, name="login-ui-proxy-tunnel", namespace="istio-gw"
         )
         mock_client.delete.assert_any_call(
             EnvoyFilter, name="login-ui-ui-rewrite", namespace="istio-gw"
@@ -268,7 +202,7 @@ class TestIstioMeshService:
         )
 
         service.cleanup(istio_resources_namespace="iam")
-        assert mock_client.delete.call_count == 4
+        assert mock_client.delete.call_count == 3
 
     def test_apply_http_status_error_raises_resource_error(self) -> None:
         """Test httpx.HTTPStatusError on apply translates to KubernetesResourceError."""

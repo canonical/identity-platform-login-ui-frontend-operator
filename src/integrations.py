@@ -32,8 +32,6 @@ from jinja2 import Template
 from bundle import BundleUrl
 from config import CharmConfig
 from constants import (
-    ENVOY_TUNNEL_PORT,
-    INTERNAL_BUNDLE_HOST_SUFFIX,
     PUBLIC_PATH_PREFIX,
     RESPONSE_HEADERS,
     TRAEFIK_ROUTE_TEMPLATE_PATH,
@@ -100,17 +98,13 @@ class IstioIngressRouteData:
         app_name: str,
         model_name: str,
     ) -> "IstioIngressRouteData":
-        """Build the IstioIngressRouteConfig for direct or proxied bundle backends."""
+        """Build the IstioIngressRouteConfig for the S3 bundle backend."""
         bundle = charm_config.bundle
         base = bundle.base_path.rstrip("/")
         hostnames = charm_config.istio_route_hostnames or None
 
-        if charm_config.istio_egress_proxy:
-            backend_host = f"{app_name}{INTERNAL_BUNDLE_HOST_SUFFIX}"
-            backend_port = ENVOY_TUNNEL_PORT
-        else:
-            backend_host = f"{app_name}-s3-external"
-            backend_port = bundle.port
+        backend_host = f"{app_name}-s3-external"
+        backend_port = bundle.port
 
         listener_port = 443 if requirer.tls_enabled else 80
         http_listener = Listener(port=listener_port, protocol=ProtocolType.HTTP)

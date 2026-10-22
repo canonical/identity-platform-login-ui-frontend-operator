@@ -14,7 +14,6 @@ When deployed with Istio:
   2. Uses `lightkube` to dynamically reconcile Istio mesh resources in the cluster:
      - **`ServiceEntry` & `DestinationRule`** (`<FRONTEND_APP_NAME>-s3-external`): configures TLS origination from the Istio Gateway to the external S3-compatible object storage service (MinIO).
      - **`EnvoyFilter`** (`<FRONTEND_APP_NAME>-ui-rewrite`): injects a Lua HTTP filter on the Gateway to rewrite extensionless page routes (`/ui/login` → `<base>/login.html`), redirect trailing slashes (`/ui/login/` → `/ui/login`), rewrite asset paths, and attach the required security and cache-control headers (`Content-Security-Policy`, `X-Frame-Options`, `Cache-Control`, etc.).
-     - *(Optional)* **`EnvoyFilter`** (`<FRONTEND_APP_NAME>-proxy-tunnel`): configures an HTTP `CONNECT` tunnel when `istio-egress-proxy` is specified.
 - **`identity-platform-login-ui-operator`** (Istio branch with `/ui` removed from `public-route`) exposes only `/api/...` and `/self-service` via `istio-ingress-route` and provides the UI endpoint URLs to Kratos and Hydra via `ui-endpoint-info`.
 
 ```mermaid
@@ -365,24 +364,7 @@ You will see:
 
 ---
 
-## Step 8: (Optional) Configuring Egress via an HTTP Proxy
-
-If the Kubernetes cluster resides in a restricted network where external S3 buckets are only reachable through a corporate HTTP `CONNECT` proxy, configure the frontend charm with `istio-egress-proxy` and `istio-gateway-workload-labels`:
-
-```bash
-export ISTIO_EGRESS_PROXY="proxy.internal.example.com:3128"
-export ISTIO_GATEWAY_WORKLOAD_LABELS="app.kubernetes.io/name=${ISTIO_INGRESS_APP}"
-
-juju config "${FRONTEND_APP_NAME}" \
-  istio-egress-proxy="${ISTIO_EGRESS_PROXY}" \
-  istio-gateway-workload-labels="${ISTIO_GATEWAY_WORKLOAD_LABELS}"
-```
-
-When set, the charm automatically reconciles a `MESH_INTERNAL` `ServiceEntry`, `DestinationRule`, and `EnvoyFilter` (`${FRONTEND_APP_NAME}-proxy-tunnel`) on `127.0.0.1:19443` inside the Gateway pod to tunnel TLS traffic through the corporate proxy.
-
----
-
-## Step 9: Expose `${ISTIO_INGRESS_APP}` on `localhost` (Ports 80 & 443)
+## Step 8: Expose `${ISTIO_INGRESS_APP}` on `localhost` (Ports 80 & 443)
 
 Locate the Kubernetes `LoadBalancer` / `ClusterIP` service created by `${ISTIO_INGRESS_APP}` (typically `${ISTIO_INGRESS_APP}-istio` in namespace `${JUJU_MODEL}`) and deploy a `hostNetwork` forwarding pod to bind `127.0.0.1:80` and `127.0.0.1:443`:
 
@@ -412,9 +394,9 @@ EOF
 
 ---
 
-## Step 10: Verification and Testing
+## Step 9: Verification and Testing
 
-### 10.1 Verify Routing and Security Headers via CLI
+### 9.1 Verify Routing and Security Headers via CLI
 ```bash
 # 1. Verify /ui -> 301 redirect to /ui/
 curl -k -I "https://${EXTERNAL_HOSTNAME}/ui"
@@ -432,7 +414,7 @@ curl -k -I "https://${EXTERNAL_HOSTNAME}/api/v0/app-config"
 curl -k -I "https://${EXTERNAL_HOSTNAME}/self-service/login/browser?return_to=/ui/login"
 ```
 
-### 10.2 Create a Test Identity in Kratos
+### 9.2 Create a Test Identity in Kratos
 ```bash
 juju run kratos/0 create-admin-account \
   email="${TEST_ADMIN_EMAIL}" \
@@ -440,7 +422,7 @@ juju run kratos/0 create-admin-account \
   username="${TEST_ADMIN_USERNAME}"
 ```
 
-### 10.3 Test in the Browser
+### 9.3 Test in the Browser
 Open your browser and navigate to:
 - **Login page**: `https://${EXTERNAL_HOSTNAME}/ui/login` (or `http://${EXTERNAL_HOSTNAME}/ui/login` if TLS is not enabled on `${ISTIO_INGRESS_APP}`)
 - **Root UI page**: `https://${EXTERNAL_HOSTNAME}/ui/`
